@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>إنجزني</title>
+<style>
+:root{--bg:#fff8e7;--fg:#1d1d1b;--card:#fff;--line:#e6dcc0;--acc:#f5a623;--mut:#6b655a;--err:#c0392b}
+@media(prefers-color-scheme:dark){:root{--bg:#17150f;--fg:#f4efe2;--card:#24211a;--line:#3a352a;--mut:#a39c8b;--err:#ff7b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Tahoma,"Segoe UI",Arial,sans-serif;min-height:100vh}
+.app{max-width:420px;margin:0 auto;padding:20px}
+.s{display:none}.s.on{display:block}
+.logo{font-size:44px;font-weight:800;text-align:center;margin:36px 0 6px}
+.sub{text-align:center;color:var(--mut);margin-bottom:28px}
+button{font-family:inherit;font-size:17px;border:0;border-radius:14px;cursor:pointer}
+button:disabled{opacity:.6}
+.big{display:block;width:100%;padding:20px;margin-bottom:14px;background:var(--card);color:var(--fg);border:2px solid var(--line);text-align:right}
+.big b{display:block;font-size:20px}.big small{color:var(--mut)}
+.main{width:100%;padding:15px;background:var(--acc);color:#1d1d1b;font-weight:700;margin-top:10px}
+.back{background:none;color:var(--mut);padding:6px 0;font-size:15px}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tabs button{flex:1;padding:11px;background:var(--card);color:var(--fg);border:2px solid var(--line)}
+.tabs button.on{background:var(--acc);color:#1d1d1b;border-color:var(--acc);font-weight:700}
+label{display:block;margin:12px 0 4px;font-size:15px}
+input[type=text],input[type=tel],input[type=password]{width:100%;padding:13px;font-size:17px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg)}
+.file{display:flex;justify-content:space-between;padding:13px;border:2px dashed var(--line);border-radius:12px;background:var(--card);cursor:pointer}
+.file span{color:var(--mut)}.file.ok span{color:#2e9e5b;font-weight:700}
+.chk{display:flex;gap:8px;align-items:center}
+.err{color:var(--err);min-height:22px;margin:10px 0 0}
+.done{text-align:center;padding-top:50px}.done .em{font-size:60px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<section class="s on" id="start">
+  <div class="logo">🛺 إنجزني</div>
+  <div class="sub">توك توك بضغطة زرار</div>
+  <button class="big" onclick="pick('rider')"><b>أنا راكب</b><small>عايز أطلب توك توك</small></button>
+  <button class="big" onclick="pick('driver')"><b>أنا سواق</b><small>عايز أشتغل على إنجزني</small></button>
+</section>
+
+<section class="s" id="form">
+  <button class="back" onclick="show('start')">→ رجوع</button>
+  <h2 id="ft"></h2>
+  <div class="tabs"><button id="tu" onclick="setMode('up')">حساب جديد</button><button id="tl" onclick="setMode('in')">تسجيل دخول</button></div>
+  <div id="nm"><label for="name">الاسم <span id="nh"></span></label><input type="text" id="name"></div>
+  <label for="phone">رقم الموبايل</label>
+  <input type="tel" id="phone" inputmode="tel" placeholder="01xxxxxxxxx">
+  <label for="pin">الرقم السري (6 أرقام)</label>
+  <input type="password" id="pin" inputmode="numeric" maxlength="6" autocomplete="off">
+  <div id="drv">
+    <label class="chk"><input type="checkbox" id="adult" onchange="$('#idrow').style.display=this.checked?'block':'none'"> عندي 18 سنة أو أكتر</label>
+    <label class="file">سيلفي بالكاميرا <span>اضغط للتصوير</span><input type="file" accept="image/*" capture="user" id="f1" hidden onchange="mark(this)"></label>
+    <label class="file">صورة التوك توك <span>اضغط للتصوير</span><input type="file" accept="image/*" capture="environment" id="f2" hidden onchange="mark(this)"></label>
+    <div id="idrow" style="display:none"><label class="file">صورة البطاقة <span>اضغط للتصوير</span><input type="file" accept="image/*" id="f3" hidden onchange="mark(this)"></label></div>
+  </div>
+  <p class="err" id="err"></p>
+  <button class="main" id="go" onclick="next()">كمّل</button>
+</section>
+
+<section class="s done" id="done">
+  <div class="em" id="dem"></div>
+  <h2 id="dt"></h2>
+  <p id="dp"></p>
+  <button class="main" onclick="logout()">خروج</button>
+</section>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
+<script>
+const sb=supabase.createClient('https://ubsypxvefbwmrqaxyieh.supabase.co','sb_publishable__ad6h_xjhecf_-ouy8YO1g_r3iyfEU2');
+const $=s=>document.querySelector(s);
+let who,mode='up',busy=false;
+const norm=s=>s.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+const show=id=>{document.querySelectorAll('.s').forEach(e=>e.classList.remove('on'));$('#'+id).classList.add('on')};
+const fail=t=>$('#err').textContent=t;
+function pick(r){who=r;setMode('up');show('form')}
+function setMode(m){
+  mode=m;fail('');
+  $('#ft').textContent=(who=='driver'?'سواق':'راكب')+' - '+(m=='up'?'حساب جديد':'تسجيل دخول');
+  $('#tu').classList.toggle('on',m=='up');$('#tl').classList.toggle('on',m=='in');
+  $('#nm').style.display=m=='up'?'block':'none';
+  $('#nh').textContent=who=='driver'?'(زي ما في البطاقة)':'';
+  $('#drv').style.display=(m=='up'&&who=='driver')?'block':'none';
+}
+function mark(i){const l=i.parentNode;l.classList.add('ok');l.querySelector('span').textContent='تم ✓'}
+function shrink(f){return new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(b=>res(b||f),'image/jpeg',.8)};im.onerror=()=>res(f);im.src=URL.createObjectURL(f)})}
+async function up(uid,n,f){const p=uid+'/'+n+'.jpg',{error}=await sb.storage.from('docs').upload(p,await shrink(f),{contentType:'image/jpeg'});if(error)throw error;return p}
+function msg(e){
+  const m=(e&&e.message)||'';
+  if(/already/i.test(m))return 'الرقم ده مسجل قبل كده، سجّل دخول';
+  if(/invalid login/i.test(m))return 'الرقم أو الرقم السري غلط';
+  if(m=='confirm')return 'لازم تقفل Confirm email من إعدادات Supabase';
+  if(m=='noprofile')return 'الحساب ناقص، اعمل حساب جديد برقم تاني';
+  if(m.startsWith('role:'))return 'الرقم ده مسجل كـ '+(m.slice(5)=='driver'?'سواق':'راكب');
+  if(/fetch|network/i.test(m))return 'مشكلة في النت، جرّب تاني';
+  return 'حصلت مشكلة: '+m;
+}
+async function next(){
+  if(busy)return;fail('');
+  const ph=norm($('#phone').value.trim()),pin=norm($('#pin').value.trim()),name=$('#name').value.trim(),adult=$('#adult').checked;
+  if(!/^01[0125]\d{8}$/.test(ph))return fail('اكتب رقم موبايل صح (11 رقم)');
+  if(!/^\d{6}$/.test(pin))return fail('الرقم السري لازم 6 أرقام');
+  if(mode=='up'){
+    if(name.split(/\s+/).length<2)return fail('اكتب اسمك الثنائي على الأقل');
+    if(who=='driver'){
+      if(!$('#f1').files[0])return fail('صوّر سيلفي بالكاميرا');
+      if(!$('#f2').files[0])return fail('صوّر التوك توك');
+      if(adult&&!$('#f3').files[0])return fail('ارفع صورة البطاقة');
+    }
+  }
+  busy=true;$('#go').disabled=true;$('#go').textContent='استنى شوية...';
+  try{
+    const email='enj'+ph+'@gmail.com';
+    if(mode=='up'){
+      const {data,error}=await sb.auth.signUp({email,password:pin});
+      if(error)throw error;
+      if(!data.user||!data.session)throw new Error('confirm');
+      const uid=data.user.id;let paths={};
+      if(who=='driver'){
+        paths.selfie_path=await up(uid,'selfie',$('#f1').files[0]);
+        paths.tuk_path=await up(uid,'tuk',$('#f2').files[0]);
+        if(adult)paths.id_path=await up(uid,'id',$('#f3').files[0]);
+      }
+      const {error:e2}=await sb.from('profiles').insert({id:uid,role:who,name,phone:ph,adult,status:who=='driver'?'review':'active',...paths});
+      if(e2)throw e2;
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email,password:pin});
+      if(error)throw error;
+    }
+    await enter(true);
+  }catch(e){fail(msg(e))}
+  finally{busy=false;$('#go').disabled=false;$('#go').textContent='كمّل'}
+}
+async function enter(check){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user)return;
+  const {data:p}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  if(!p){await sb.auth.signOut();throw new Error('noprofile')}
+  if(check&&p.role!==who){await sb.auth.signOut();throw new Error('role:'+p.role)}
+  who=p.role;
+  let em='👋',t='أهلاً يا '+p.name,d='حسابك جاهز. طلب الرحلة هنضيفه في الخطوة الجاية.';
+  if(p.role=='driver'){
+    if(p.status=='review'){em='⏳';t='طلبك قيد المراجعة';d='هنراجع بياناتك ونبلغك لما حسابك يتفعل. أول شهر مجاني 🎉'}
+    else if(p.status=='active'){em='✅';t='أهلاً يا كابتن '+p.name;d='حسابك مفعّل.'}
+    else{em='❌';t='طلبك اترفض';d='تواصل معانا لو في خطأ.'}
+  }
+  $('#dem').textContent=em;$('#dt').textContent=t;$('#dp').textContent=d;show('done');
+}
+async function logout(){await sb.auth.signOut();show('start')}
+enter(false).catch(()=>{});
+</script>
+</body>
+</html>
